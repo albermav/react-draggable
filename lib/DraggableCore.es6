@@ -26,12 +26,6 @@ const eventsFor = {
 // Default to mouse events.
 let dragEventFor = eventsFor.mouse;
 
-type CoreState = {
-  dragging: boolean,
-  lastX: number,
-  lastY: number,
-  touchIdentifier: ?number
-};
 
 //
 // Define <DraggableCore>.
@@ -172,11 +166,13 @@ export default class DraggableCore extends React.Component {
     onMouseDown: function(){}
   };
 
-  state: CoreState = {
-    dragging: false,
-    // Used while dragging to determine deltas.
-    lastX: NaN, lastY: NaN,
-    touchIdentifier: null
+  
+  constructor(props) {
+	super(props);
+	this.dragging = false;
+	this.lastX = NaN;
+	this.lastY = NaN;
+	this.touchIdentifier = null;
   };
 
   componentWillUnmount() {
@@ -213,7 +209,7 @@ export default class DraggableCore extends React.Component {
     // distinguish between individual touches on multitouch screens by identifying which
     // touchpoint was set to this element.
     const touchIdentifier = getTouchIdentifier(e);
-    this.setState({touchIdentifier});
+    this.touchIdentifier = touchIdentifier;
 
     // Get the current drag point from the event. This is used as the offset.
     const position = getControlPosition(e, touchIdentifier, this);
@@ -237,12 +233,9 @@ export default class DraggableCore extends React.Component {
     // Initiate dragging. Set the current x and y as offsets
     // so we know how much we've moved during the drag. This allows us
     // to drag elements around even if they have been moved, without issue.
-    this.setState({
-      dragging: true,
-
-      lastX: x,
-      lastY: y
-    });
+    this.dragging = true;
+	this.lastX = x;
+	this.lastY = y;
 
     // Add events to the document directly so we catch when the user's mouse/touch moves outside of
     // this element. We use different events depending on whether or not we have detected that this
@@ -254,7 +247,7 @@ export default class DraggableCore extends React.Component {
   handleDrag: EventHandler<MouseTouchEvent> = (e) => {
 
     // Get the current drag point from the event. This is used as the offset.
-    const position = getControlPosition(e, this.state.touchIdentifier, this);
+    const position = getControlPosition(e, this.touchIdentifier, this);
     if (position == null) return;
     let {x, y} = position;
 
@@ -262,10 +255,10 @@ export default class DraggableCore extends React.Component {
     if (x !== x) debugger;
 
     if (Array.isArray(this.props.grid)) {
-      let deltaX = x - this.state.lastX, deltaY = y - this.state.lastY;
+      let deltaX = x - this.lastX, deltaY = y - this.lastY;
       [deltaX, deltaY] = snapToGrid(this.props.grid, deltaX, deltaY);
       if (!deltaX && !deltaY) return; // skip useless drag
-      x = this.state.lastX + deltaX, y = this.state.lastY + deltaY;
+      x = this.lastX + deltaX, y = this.lastY + deltaY;
     }
 
     const coreEvent = createCoreData(this, x, y);
@@ -288,17 +281,15 @@ export default class DraggableCore extends React.Component {
       }
       return;
     }
-
-    this.setState({
-      lastX: x,
-      lastY: y
-    });
+	
+	this.lastX = x;
+	this.lastY = y;
   };
 
   handleDragStop: EventHandler<MouseTouchEvent> = (e) => {
-    if (!this.state.dragging) return;
+    if (!this.dragging) return;
 
-    const position = getControlPosition(e, this.state.touchIdentifier, this);
+    const position = getControlPosition(e, this.touchIdentifier, this);
     if (position == null) return;
     const {x, y} = position;
     const coreEvent = createCoreData(this, x, y);
@@ -310,11 +301,9 @@ export default class DraggableCore extends React.Component {
     log('DraggableCore: handleDragStop: %j', coreEvent);
 
     // Reset the el.
-    this.setState({
-      dragging: false,
-      lastX: NaN,
-      lastY: NaN
-    });
+    this.dragging = false;
+	this.lastX = NaN;
+	this.lastY = NaN;
 
     // Call event handler
     this.props.onStop(e, coreEvent);
